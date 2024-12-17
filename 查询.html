@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SCUM 服务器查询</title>
+    <style>
+      /* 全局样式 */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Roboto", sans-serif;
+        background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        background-color: #2c3e50;
+        color: white;
+        padding: 20px 40px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        position: relative;
+      }
+      header h1 {
+        font-size: 2em;
+        margin-bottom: 10px;
+        flex: 1 1 100%;
+      }
+      /* 刷新按钮样式 */
+      .refresh-button {
+        background-color: #2980b9;
+        border: none;
+        color: white;
+        /* 加大按钮宽度：增大padding */
+        padding: 10px 24px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.95em;
+        transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+        display: inline-flex;
+        align-items: center;
+        margin-top: 10px;
+        white-space: nowrap; /* 保证文字不换行 */
+      }
+      .refresh-button:hover {
+        background-color: #1c5980;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      .refresh-button:active {
+        transform: scale(0.98);
+      }
+      .refresh-button svg {
+        width: 16px;
+        height: 16px;
+        margin-right: 6px;
+      }
+      /* 容器样式 */
+      .container {
+        max-width: 1200px;
+        margin: 30px auto;
+        padding: 0 20px;
+        flex: 1;
+      }
+      /* 服务器卡片样式 */
+      .server-card {
+        background: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        margin-bottom: 25px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+        background: linear-gradient(145deg, #ffffff, #f8f9fa);
+      }
+      .server-card:hover {
+        transform: translateY(-7px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      }
+      .server-info {
+        flex: 1;
+        min-width: 250px;
+      }
+      .server-info h2 {
+        margin-bottom: 12px;
+        font-size: 1.6em;
+        color: #2c3e50;
+        word-break: break-word;
+      }
+      .server-info p {
+        margin: 6px 0;
+        color: #555555;
+        font-size: 1em;
+      }
+      .server-info p strong {
+        color: #333333;
+      }
+      .status {
+        padding: 6px 12px;
+        border-radius: 20px;
+        color: white;
+        font-size: 0.9em;
+        display: inline-block;
+        margin-bottom: 10px;
+      }
+      .status.online {
+        background-color: #27ae60;
+      }
+      .status.offline {
+        background-color: #c0392b;
+      }
+      .players {
+        font-weight: bold;
+        color: #2c3e50;
+      }
+      /* 加载和错误信息样式 */
+      .loading,
+      .error {
+        text-align: center;
+        font-size: 1.3em;
+        color: #7f8c8d;
+        margin-top: 50px;
+      }
+      /* 底部样式 */
+      footer {
+        background-color: #2c3e50;
+        color: white;
+        text-align: center;
+        padding: 15px 20px;
+        box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+      }
+      /* 响应式设计 */
+      @media (min-width: 769px) {
+        header {
+          flex-wrap: nowrap;
+        }
+        .refresh-button {
+          margin-top: 0;
+        }
+      }
+      @media (max-width: 768px) {
+        header {
+          padding: 20px;
+          text-align: center;
+        }
+        .refresh-button {
+          width: auto;
+          justify-content: center;
+        }
+      }
+      /* QQ群链接样式 */
+      .qq-group {
+        margin-top: 10px;
+        font-size: 1em;
+      }
+      .qq-group a {
+        color: #1abc9c;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      .qq-group a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>SCUM 服务器在线人数查询</h1>
+      <button class="refresh-button" id="refresh-button">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0114.18-3.36L23 10"></path>
+          <path d="M20.49 15a9 9 0 01-14.18 3.36L1 14"></path>
+        </svg>
+        刷新
+      </button>
+    </header>
+    <div class="container" id="server-container">
+      <div class="loading" id="loading">加载中...</div>
+      <div class="error" id="error" style="display: none">
+        无法获取服务器数据，请稍后再试。
+      </div>
+    </div>
+    <footer>
+      <p>© 2024 SCUM 服务器查询 | 由 OpenAI 提供技术支持</p>
+      <p class="qq-group">
+        加入我们的QQ群：<a href="https://qm.qq.com/q/1iXeHbVtd2" target="_blank"
+          >921193444</a
+        >
+      </p>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const apiUrl =
+          "https://api.battlemetrics.com/servers?fields%5Bserver%5D=rank%2Cname%2Cplayers%2CmaxPlayers%2Caddress%2Cip%2Cport%2Ccountry%2Clocation%2Cdetails%2Cstatus&relations%5Bserver%5D=game%2CserverGroup&filter%5Bgame%5D=scum&filter%5Bsearch%5D=6661&filter%5Bstatus%5D=online";
+        const container = document.getElementById("server-container");
+        const loading = document.getElementById("loading");
+        const errorDiv = document.getElementById("error");
+        const refreshButton = document.getElementById("refresh-button");
+
+        function fetchServerData() {
+          // 显示加载状态
+          loading.style.display = "block";
+          errorDiv.style.display = "none";
+          container
+            .querySelectorAll(".server-card")
+            .forEach((card) => card.remove());
+
+          fetch(apiUrl)
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("网络响应不是OK");
+              }
+              return response.json();
+            })
+            .then((data) => {
+              loading.style.display = "none";
+              if (data.data && data.data.length > 0) {
+                data.data.forEach((server) => {
+                  const attributes = server.attributes;
+                  const serverCard = document.createElement("div");
+                  serverCard.className = "server-card";
+
+                  const infoDiv = document.createElement("div");
+                  infoDiv.className = "server-info";
+
+                  const name = document.createElement("h2");
+                  name.textContent = attributes.name;
+                  infoDiv.appendChild(name);
+
+                  const status = document.createElement("span");
+                  status.className =
+                    "status " +
+                    (attributes.status === "online" ? "online" : "offline");
+                  status.textContent =
+                    attributes.status === "online" ? "在线" : "离线";
+                  infoDiv.appendChild(status);
+
+                  const time = document.createElement("p");
+                  time.innerHTML = `<strong>时间:</strong> ${attributes.details.time}`;
+                  infoDiv.appendChild(time);
+
+                  const country = document.createElement("p");
+                  country.innerHTML = `<strong>国家:</strong> ${attributes.country}`;
+                  infoDiv.appendChild(country);
+
+                  const players = document.createElement("p");
+                  players.innerHTML = `<strong>玩家:</strong> <span class="players">${attributes.players}</span> / ${attributes.maxPlayers}`;
+                  infoDiv.appendChild(players);
+
+                  serverCard.appendChild(infoDiv);
+                  container.appendChild(serverCard);
+                });
+              } else {
+                container.innerHTML =
+                  '<div class="error">没有找到在线的服务器。</div>';
+              }
+            })
+            .catch((error) => {
+              console.error("获取数据时出错:", error);
+              loading.style.display = "none";
+              errorDiv.style.display = "block";
+            });
+        }
+
+        // 初次加载数据
+        fetchServerData();
+
+        // 点击刷新按钮时重新获取数据
+        refreshButton.addEventListener("click", fetchServerData);
+      });
+    </script>
+  </body>
+</html>
